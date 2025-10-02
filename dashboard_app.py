@@ -4,8 +4,14 @@ from sqlalchemy import create_engine, text
 import plotly.express as px
 
 # -------------------- Supabase DB Connection --------------------
-DB_URL = st.secrets["SUPABASE_DB_URL"]
+from sqlalchemy import create_engine
+
+DB_URL = "postgresql://postgres.aqraijoagwppwosjadil:b0QfVwycH3Il4fYw@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
 engine = create_engine(DB_URL)
+
+with engine.connect() as conn:
+    result = conn.execute("SELECT 1")
+    print(result.fetchone())
 
 # -------------------- Load Data --------------------
 @st.cache_data
@@ -82,3 +88,4 @@ with st.expander("📂 Raw Survey Data"):
         "survey_responses.csv",
         "text/csv"
     )
+
