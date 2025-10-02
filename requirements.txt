@@ -1,5 +1,5 @@
 streamlit
 pandas
-sqlalchemy
 plotly
-geopy
+sqlalchemy
+psycopg2-binary
