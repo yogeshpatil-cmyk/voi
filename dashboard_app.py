@@ -12,10 +12,9 @@ st.title("📊 Voice of Industry Dashboard")
 # Try Supabase first
 DB_URL = st.secrets.get("SUPABASE_DB_URL") or os.getenv("SUPABASE_DB_URL")
 
-# Add SSL for Supabase
-if DB_URL and "postgresql://" in DB_URL:
-    if "?sslmode=" not in DB_URL:
-        DB_URL += "?sslmode=require"
+# Use correct pooler host and SSL for Supabase
+if DB_URL and "postgresql://" in DB_URL and "sslmode" not in DB_URL:
+    DB_URL += "?sslmode=require"
 
 use_sqlite = False
 if not DB_URL:
