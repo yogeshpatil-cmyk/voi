@@ -1,9 +1,7 @@
 import streamlit as st
 import sqlite3
 import os
-import pandas as pd
-import plotly.express as px
-from datetime import datetime
+
 # -------------------- Database Setup --------------------
 DB_FILE = os.path.join(os.path.dirname(__file__), "survey_responses.db")
 
@@ -35,7 +33,7 @@ init_db()
 questions = {
     "q1": {
         "heading": "The Hiring Hurdle",
-        "question": "What is the single biggest roadblock you face when hiring fresh graduates?",
+        "question": "What is the single biggest roadblock you face in hiring fresh graduates?",
         "options": [
             "Poor communication and confidence",
             "Weak problem-solving ability",
@@ -90,7 +88,13 @@ questions = {
     },
 }
 
-# -------------------- Functions --------------------
+# -------------------- Session State --------------------
+if "survey_page" not in st.session_state:
+    st.session_state.survey_page = "info"
+if "responses" not in st.session_state:
+    st.session_state.responses = {}
+
+# -------------------- Save Response --------------------
 def save_response(data):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -107,81 +111,70 @@ def save_response(data):
     conn.commit()
     conn.close()
 
-def load_data():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql("SELECT * FROM responses", conn)
-    conn.close()
-    return df
+# -------------------- App Layout --------------------
+st.set_page_config(page_title="Voice of Industry Survey", layout="centered")
+st.title("📝 Voice of Industry Survey")
 
-# -------------------- Sidebar --------------------
-st.set_page_config(page_title="Voice of Industry", layout="wide")
-page = st.sidebar.radio("Go to", ["Survey", "Dashboard"])
+# -------------------- Page: Info --------------------
+if st.session_state.survey_page == "info":
+    st.header("Respondent Information")
+    name = st.text_input("Full Name")
+    organization = st.text_input("Organization Name")
+    org_size = st.radio("Organization Size", ["<50", "51-100", "101-250", "250+"])
+    org_type = st.selectbox(
+        "Type of Organization",
+        ["Agriculture & Farming","Manufacturing & Industrial","Construction & Real Estate",
+         "Information Technology (IT & Software)","Healthcare & Pharmaceuticals",
+         "Banking, Finance & Insurance","Education & Training","Tourism & Hospitality",
+         "Transport & Logistics","Media & Entertainment","Energy & Power",
+         "Retail & E-commerce","Others"]
+    )
+    location = st.text_input("City / Region")
 
-# -------------------- Survey --------------------
-if page == "Survey":
-    st.title("📝 Voice of Industry Survey")
+    if st.button("Start Survey ➡️"):
+        if not name or not organization or not location:
+            st.error("Please fill all required fields.")
+        else:
+            st.session_state.responses.update({
+                "name": name,
+                "organization": organization,
+                "org_size": org_size,
+                "org_type": org_type,
+                "location": location,
+            })
+            st.session_state.survey_page = "q1"
+            st.experimental_rerun()
 
-    # Initialize session state
-    if "survey_page" not in st.session_state:
-        st.session_state.survey_page = "info"
-    if "responses" not in st.session_state:
-        st.session_state.responses = {}
+# -------------------- Page: Questions --------------------
+elif st.session_state.survey_page in questions:
+    qid = st.session_state.survey_page
+    qdata = questions[qid]
 
-    # Page: Respondent Info
-    if st.session_state.survey_page == "info":
-        st.header("Respondent Information")
-        name = st.text_input("Full Name")
-        organization = st.text_input("Organization Name")
-        org_size = st.radio("Organization Size", ["<50", "51-100", "101-250", "250+"])
-        org_type = st.selectbox(
-            "Type of Organization",
-            ["Agriculture & Farming","Manufacturing & Industrial","Construction & Real Estate",
-             "Information Technology (IT & Software)","Healthcare & Pharmaceuticals",
-             "Banking, Finance & Insurance","Education & Training","Tourism & Hospitality",
-             "Transport & Logistics","Media & Entertainment","Energy & Power","Retail & E-commerce","Others"]
-        )
-        location = st.text_input("City / Region")
-
-        if st.button("Start Survey ➡️"):
-            if not name or not organization or not location:
-                st.error("Please fill all required fields.")
-            else:
-                st.session_state.responses.update({
-                    "name": name,
-                    "organization": organization,
-                    "org_size": org_size,
-                    "org_type": org_type,
-                    "location": location,
-                    })
-                st.session_state.survey_page = "q1"
-                st.experimental_rerun()
-
-    # Pages: Questions
-    elif st.session_state.survey_page in questions:
-        qid = st.session_state.survey_page
-        qdata = questions[qid]
-        st.header(qdata["heading"])
-        st.write(qdata["question"])
-        selected = st.multiselect("Select one or more options:", qdata["options"], key=qid)
+    st.header(qdata["heading"])
+    st.subheader(qdata["question"])
+    selected = st.multiselect("Select one or more options:", qdata["options"])
 
     if st.button("Next ➡️"):
-    if not selected:
-        st.error("Please select at least one option.")
-    else:
-        st.session_state.responses[qid] = " || ".join(selected)
-        next_q = f"q{int(qid[1]) + 1}"
-        if next_q in questions:
-            st.session_state.survey_page = next_q
+        if not selected:
+            st.error("Please select at least one option.")
         else:
-            st.session_state.survey_page = "done"
+            st.session_state.responses[qid] = " || ".join(selected)
+            next_q = f"q{int(qid[1]) + 1}"
+            if next_q in questions:
+                st.session_state.survey_page = next_q
+            else:
+                st.session_state.survey_page = "done"
+            st.experimental_rerun()
 
+# -------------------- Page: Completion --------------------
+elif st.session_state.survey_page == "done":
+    save_response(st.session_state.responses)
+    st.success("✅ Thank you for completing the survey!")
+    st.balloons()
 
-    # Page: Completion
-    elif st.session_state.survey_page == "done":
-        save_response(st.session_state.responses)
-        st.success("✅ Thank you for completing the survey!")
-        st.balloons()
-        st.session_state.survey_page = "info"  # Reset for next respondent
+    st.markdown("### 📊 Next Step")
+    st.write("You can now view insights in the dashboard.")
+    st.link_button("Go to Dashboard", "http://localhost:8501")  # Change link if deployed
 
 # -------------------- Dashboard --------------------
 elif page == "Dashboard":
@@ -221,4 +214,5 @@ elif page == "Dashboard":
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No responses yet.")
+
 
