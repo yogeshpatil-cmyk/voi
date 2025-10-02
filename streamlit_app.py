@@ -1,6 +1,8 @@
 import streamlit as st
 import sqlite3
 import os
+import pandas as pd
+import plotly.express as px
 
 # -------------------- Database Setup --------------------
 DB_FILE = os.path.join(os.path.dirname(__file__), "survey_responses.db")
@@ -29,11 +31,11 @@ def init_db():
 
 init_db()
 
-# -------------------- Questions --------------------
+# -------------------- Survey Questions --------------------
 questions = {
     "q1": {
         "heading": "The Hiring Hurdle",
-        "question": "What is the single biggest roadblock you face in hiring fresh graduates?",
+        "question": "What is the single biggest roadblock you face when hiring fresh graduates?",
         "options": [
             "Poor communication and confidence",
             "Weak problem-solving ability",
@@ -89,12 +91,14 @@ questions = {
 }
 
 # -------------------- Session State --------------------
-if "survey_page" not in st.session_state:
-    st.session_state.survey_page = "info"
+if "page" not in st.session_state:
+    st.session_state.page = "info"
 if "responses" not in st.session_state:
     st.session_state.responses = {}
+if "show_dashboard" not in st.session_state:
+    st.session_state.show_dashboard = False
 
-# -------------------- Save Response --------------------
+# -------------------- Functions --------------------
 def save_response(data):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -111,108 +115,128 @@ def save_response(data):
     conn.commit()
     conn.close()
 
+def load_data():
+    conn = sqlite3.connect(DB_FILE)
+    df = pd.read_sql("SELECT * FROM responses", conn)
+    conn.close()
+    return df
+
 # -------------------- App Layout --------------------
-st.set_page_config(page_title="Voice of Industry Survey", layout="centered")
-st.title("📝 Voice of Industry Survey")
+st.set_page_config(page_title="Voice of Industry", layout="wide")
+st.title("📝 Voice of Industry Survey & Dashboard")
 
-# -------------------- Page: Info --------------------
-if st.session_state.survey_page == "info":
-    st.header("Respondent Information")
-    name = st.text_input("Full Name")
-    organization = st.text_input("Organization Name")
-    org_size = st.radio("Organization Size", ["<50", "51-100", "101-250", "250+"])
-    org_type = st.selectbox(
-        "Type of Organization",
-        ["Agriculture & Farming","Manufacturing & Industrial","Construction & Real Estate",
-         "Information Technology (IT & Software)","Healthcare & Pharmaceuticals",
-         "Banking, Finance & Insurance","Education & Training","Tourism & Hospitality",
-         "Transport & Logistics","Media & Entertainment","Energy & Power",
-         "Retail & E-commerce","Others"]
-    )
-    location = st.text_input("City / Region")
+# -------------------- Survey Pages --------------------
+if not st.session_state.show_dashboard:
 
-    if st.button("Start Survey ➡️"):
-        if not name or not organization or not location:
-            st.error("Please fill all required fields.")
-        else:
-            st.session_state.responses.update({
-                "name": name,
-                "organization": organization,
-                "org_size": org_size,
-                "org_type": org_type,
-                "location": location,
-            })
-            st.session_state.survey_page = "q1"
-            st.experimental_rerun()
+    # --- Respondent Info Page ---
+    if st.session_state.page == "info":
+        st.header("Respondent Information")
+        name = st.text_input("Full Name")
+        organization = st.text_input("Organization Name")
+        org_size = st.radio("Organization Size", ["<50", "51-100", "101-250", "250+"])
+        org_type = st.selectbox(
+            "Type of Organization",
+            ["Agriculture & Farming","Manufacturing & Industrial","Construction & Real Estate",
+             "Information Technology (IT & Software)","Healthcare & Pharmaceuticals",
+             "Banking, Finance & Insurance","Education & Training","Tourism & Hospitality",
+             "Transport & Logistics","Media & Entertainment","Energy & Power","Retail & E-commerce","Others"]
+        )
+        location = st.text_input("City / Region")
 
-# -------------------- Page: Questions --------------------
-elif st.session_state.survey_page in questions:
-    qid = st.session_state.survey_page
-    qdata = questions[qid]
-
-    st.header(qdata["heading"])
-    st.subheader(qdata["question"])
-    selected = st.multiselect("Select one or more options:", qdata["options"])
-
-    if st.button("Next ➡️"):
-        if not selected:
-            st.error("Please select at least one option.")
-        else:
-            st.session_state.responses[qid] = " || ".join(selected)
-            next_q = f"q{int(qid[1]) + 1}"
-            if next_q in questions:
-                st.session_state.survey_page = next_q
+        if st.button("Start Survey ➡️"):
+            if not name or not organization or not location:
+                st.error("Please fill all required fields!")
             else:
-                st.session_state.survey_page = "done"
+                st.session_state.responses.update({
+                    "name": name,
+                    "organization": organization,
+                    "org_size": org_size,
+                    "org_type": org_type,
+                    "location": location
+                })
+                st.session_state.page = "q1"
+                st.experimental_rerun()
+
+    # --- Survey Question Pages ---
+    elif st.session_state.page in questions:
+        qid = st.session_state.page
+        qdata = questions[qid]
+
+        st.header(qdata["heading"])
+        st.subheader(qdata["question"])
+        selected = st.multiselect("Select one or more options:", qdata["options"])
+
+        if st.button("Next ➡️"):
+            if not selected:
+                st.error("Please select at least one option.")
+            else:
+                st.session_state.responses[qid] = " || ".join(selected)
+                next_num = int(qid[1]) + 1
+                st.session_state.page = f"q{next_num}" if f"q{next_num}" in questions else "done"
+                st.experimental_rerun()
+
+    # --- Survey Completion Page ---
+    elif st.session_state.page == "done":
+        save_response(st.session_state.responses)
+        st.success("✅ Thank you for completing the survey!")
+        if st.button("Go to Dashboard 📊"):
+            st.session_state.show_dashboard = True
             st.experimental_rerun()
-
-# -------------------- Page: Completion --------------------
-elif st.session_state.survey_page == "done":
-    save_response(st.session_state.responses)
-    st.success("✅ Thank you for completing the survey!")
-    st.balloons()
-
-    st.markdown("### 📊 Next Step")
-    st.write("You can now view insights in the dashboard.")
-    st.link_button("Go to Dashboard", "http://localhost:8501")  # Change link if deployed
 
 # -------------------- Dashboard --------------------
-elif page == "Dashboard":
-    st.title("📊 Voice of Industry Dashboard")
+if st.session_state.show_dashboard:
+    st.header("📊 Voice of Industry Dashboard")
     df = load_data()
-
     if df.empty:
         st.warning("⚠️ No responses yet.")
-        st.stop()
+    else:
+        # --- Filters ---
+        st.sidebar.header("Filters")
+        industries = ["All"] + sorted(df["org_type"].dropna().unique().tolist())
+        sizes = ["All"] + sorted(df["org_size"].dropna().unique().tolist())
+        locations = sorted(df["location"].dropna().unique().tolist())
 
-    # KPIs
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Responses", len(df))
-    col2.metric("Unique Organizations", df["organization"].nunique())
-    col3.metric("Unique Locations", df["location"].nunique())
+        selected_industry = st.sidebar.selectbox("Industry Type", industries)
+        selected_size = st.sidebar.selectbox("Organization Size", sizes)
+        selected_locations = st.sidebar.multiselect("Location (City/Region)", locations)
 
-    st.markdown("---")
+        filtered_df = df.copy()
+        if selected_industry != "All":
+            filtered_df = filtered_df[filtered_df["org_type"] == selected_industry]
+        if selected_size != "All":
+            filtered_df = filtered_df[filtered_df["org_size"] == selected_size]
+        if selected_locations:
+            filtered_df = filtered_df[filtered_df["location"].isin(selected_locations)]
 
-    # Pie charts
-    st.subheader("Survey Insights")
-    cols = st.columns(len(questions))
-    for idx, (qid, qdata) in enumerate(questions.items()):
-        with cols[idx]:
-            st.markdown(f"#### {qdata['heading']}")
-            qdata_series = df[qid].dropna()
-            if not qdata_series.empty:
-                all_answers = []
-                for row in qdata_series:
-                    all_answers.extend([ans.strip() for ans in row.split("||")])
-                counts = pd.Series(all_answers).value_counts().reset_index()
-                counts.columns = ["Answer", "Count"]
-                fig = px.pie(counts, names="Answer", values="Count", hole=0.4)
-                fig.update_layout(
-                    legend=dict(orientation="h", y=-0.3, x=0.5, xanchor="center"),
-                    margin=dict(t=30, b=40, l=10, r=10)
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No responses yet.")
+        # --- KPIs ---
+        kpi1, kpi2, kpi3 = st.columns(3)
+        kpi1.metric("Total Responses", len(filtered_df))
+        kpi2.metric("Unique Organizations", filtered_df["organization"].nunique())
+        kpi3.metric("Unique Locations", filtered_df["location"].nunique())
 
+        # --- Industry Bar Chart ---
+        st.subheader("🌍 Industry Representation")
+        industry_counts = filtered_df["org_type"].value_counts().reset_index()
+        industry_counts.columns = ["Industry", "Count"]
+        fig_industry = px.bar(industry_counts, x="Industry", y="Count", text="Count", color="Industry")
+        st.plotly_chart(fig_industry, use_container_width=True)
 
+        # --- Pie Charts for Survey Questions ---
+        st.subheader("📊 Survey Insights")
+        question_titles = {k:v["heading"] for k,v in questions.items()}
+        cols = st.columns(len(question_titles))
+        for idx, (qid, title) in enumerate(question_titles.items()):
+            qdata = filtered_df[qid].dropna()
+            with cols[idx]:
+                st.markdown(f"#### {title}")
+                if not qdata.empty:
+                    all_answers = []
+                    for row in qdata:
+                        all_answers.extend([ans.strip() for ans in row.split("||")])
+                    counts = pd.Series(all_answers).value_counts().reset_index()
+                    counts.columns = ["Answer", "Count"]
+                    fig = px.pie(counts, names="Answer", values="Count", hole=0.3, height=250, width=250)
+                    fig.update_layout(legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"))
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No responses yet for this question.")
