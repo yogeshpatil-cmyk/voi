@@ -2,32 +2,34 @@ import streamlit as st
 import sqlite3
 import os
 import pandas as pd
-import plotly.express as px
 from datetime import datetime
+import subprocess
 
 # -------------------- Database Setup --------------------
 DB_FILE = os.path.join(os.path.dirname(__file__), "survey_responses.db")
 
 def init_db():
+    db_exists = os.path.exists(DB_FILE)
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS responses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        organization TEXT,
-        org_size TEXT,
-        org_type TEXT,
-        location TEXT,
-        q1 TEXT,
-        q2 TEXT,
-        q3 TEXT,
-        q4 TEXT,
-        q5 TEXT,
-        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    conn.commit()
+    if not db_exists:
+        c.execute("""
+        CREATE TABLE responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            organization TEXT,
+            org_size TEXT,
+            org_type TEXT,
+            location TEXT,
+            q1 TEXT,
+            q2 TEXT,
+            q3 TEXT,
+            q4 TEXT,
+            q5 TEXT,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        conn.commit()
     conn.close()
 
 init_db()
@@ -113,12 +115,20 @@ def save_response(data):
     ))
     conn.commit()
     conn.close()
+    # Optional: push to GitHub
+    # push_db_to_github()
 
 def load_responses():
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql("SELECT * FROM responses", conn)
     conn.close()
     return df
+
+def push_db_to_github():
+    repo_dir = os.path.dirname(__file__)
+    subprocess.run(["git", "-C", repo_dir, "add", "survey_responses.db"])
+    subprocess.run(["git", "-C", repo_dir, "commit", "-m", "Update survey responses"])
+    subprocess.run(["git", "-C", repo_dir, "push", "origin", "main"])
 
 # -------------------- App Layout --------------------
 st.set_page_config(page_title="Voice of Industry", layout="wide")
@@ -164,7 +174,6 @@ elif st.session_state.page in questions:
             st.error("Please select at least one option.")
         else:
             st.session_state.responses[qid] = " || ".join(selected)
-            # Move to next question or completion
             next_num = int(qid[1]) + 1
             next_page = f"q{next_num}" if f"q{next_num}" in questions else "done"
             st.session_state.page = next_page
@@ -173,68 +182,3 @@ elif st.session_state.page in questions:
 elif st.session_state.page == "done":
     save_response(st.session_state.responses)
     st.success("✅ Thank you for completing the survey!")
-
-    st.header("📊 Voice of Industry Dashboard")
-    df = load_responses()
-
-    # -------------------- KPIs --------------------
-    kpi1, kpi2, kpi3 = st.columns(3)
-    kpi1.metric("Total Responses", len(df))
-    kpi2.metric("Unique Organizations", df["organization"].nunique())
-    kpi3.metric("Unique Locations", df["location"].nunique())
-
-    # -------------------- Industry Bar Chart --------------------
-    st.subheader("🌍 Industry Type Distribution")
-    industry_counts = df["org_type"].value_counts().reset_index()
-    industry_counts.columns = ["Industry Type", "Count"]
-    fig_industry = px.bar(
-        industry_counts, x="Industry Type", y="Count",
-        text="Count", color="Industry Type", height=400
-    )
-    st.plotly_chart(fig_industry, use_container_width=True)
-
-    # -------------------- Survey Pie Charts (Horizontal) --------------------
-    st.subheader("📊 Survey Insights")
-    cols = st.columns(len(questions))
-    for idx, (qid, title) in enumerate(questions.items()):
-        qdata = df[qid].dropna()
-        with cols[idx]:
-            st.markdown(f"#### {title['heading']}")
-            if not qdata.empty:
-                all_answers = []
-                for row in qdata:
-                    all_answers.extend([ans.strip() for ans in row.split("||")])
-                answer_counts = pd.Series(all_answers).value_counts().reset_index()
-                answer_counts.columns = ["Answer", "Count"]
-                fig = px.pie(
-                    answer_counts, names="Answer", values="Count",
-                    hole=0.4, height=250, width=250
-                )
-                fig.update_layout(
-                    legend=dict(
-                        orientation="h",
-                        y=-0.3,
-                        x=0.5,
-                        xanchor="center",
-                        font=dict(size=9)
-                    ),
-                    margin=dict(t=30, b=40, l=10, r=10)
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("No responses yet for this question.")
-
-    # -------------------- Raw Data --------------------
-    with st.expander("📂 Raw Survey Data"):
-        st.dataframe(df)
-        st.download_button(
-            "⬇️ Download CSV",
-            df.to_csv(index=False),
-            "survey_responses.csv",
-            "text/csv"
-        )
-
-    # Reset button to take new survey
-    if st.button("Take Survey Again"):
-        st.session_state.page = "info"
-        st.session_state.responses = {}
