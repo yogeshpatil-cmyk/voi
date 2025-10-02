@@ -4,7 +4,6 @@ import os
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-
 # -------------------- Database Setup --------------------
 DB_FILE = os.path.join(os.path.dirname(__file__), "survey_responses.db")
 
@@ -32,23 +31,63 @@ def init_db():
 
 init_db()
 
-# -------------------- Survey Questions --------------------
+# -------------------- Questions --------------------
 questions = {
-    "q1": ("The Hiring Hurdle", 
-           "What is the single biggest roadblock you face when hiring fresh graduates?", 
-           ["Poor communication and confidence","Weak problem-solving ability","Unrealistic salary or role expectations","Lack of workplace readiness","Shallow domain knowledge"]),
-    "q2": ("The Future Skill Stack", 
-           "Which skills will matter most for young professionals in the next 5 years?", 
-           ["Digital & data literacy","Problem solving & analytical thinking","Financial & business acumen","Communication & collaboration","Adaptability & agility"]),
-    "q3": ("The First Job Gap", 
-           "When freshers join, where do you see the biggest gap between expectation and reality?", 
-           ["Workplace behavior","Ability to apply knowledge in practice","Confidence & communication","Discipline & work ethic","Ownership / accountability"]),
-    "q4": ("The Selection Compass", 
-           "If you could pick only one trait while hiring, which would you bet on?", 
-           ["Attitude & learnability","Integrity & ethics","Communication skills","Resilience & work ethic","Domain knowledge"]),
-    "q5": ("The Retention Code", 
-           "What matters most in retaining young talent in the first 2 years?", 
-           ["Growth & learning opportunities","Good manager and team culture","Competitive compensation","Work-life balance & flexibility","Role alignment with skills"]),
+    "q1": {
+        "heading": "The Hiring Hurdle",
+        "question": "What is the single biggest roadblock you face when hiring fresh graduates?",
+        "options": [
+            "Poor communication and confidence",
+            "Weak problem-solving ability",
+            "Unrealistic salary or role expectations",
+            "Lack of workplace readiness",
+            "Shallow domain knowledge"
+        ]
+    },
+    "q2": {
+        "heading": "The Future Skill Stack",
+        "question": "Which skills will matter most for young professionals in the next 5 years?",
+        "options": [
+            "Digital & data literacy",
+            "Problem solving & analytical thinking",
+            "Financial & business acumen",
+            "Communication & collaboration",
+            "Adaptability & agility"
+        ]
+    },
+    "q3": {
+        "heading": "The First Job Gap",
+        "question": "When freshers join, where do you see the biggest gap between expectation and reality?",
+        "options": [
+            "Workplace behavior / professionalism",
+            "Ability to apply knowledge in practice",
+            "Confidence & communication",
+            "Discipline & work ethic",
+            "Ownership / accountability"
+        ]
+    },
+    "q4": {
+        "heading": "The Selection Compass",
+        "question": "If you could pick only one trait while hiring, which would you bet on?",
+        "options": [
+            "Attitude & learnability",
+            "Integrity & ethics",
+            "Communication skills",
+            "Resilience & work ethic",
+            "Domain knowledge"
+        ]
+    },
+    "q5": {
+        "heading": "The Retention Code",
+        "question": "What matters most in retaining young talent in the first 2 years?",
+        "options": [
+            "Growth & learning opportunities",
+            "Good manager and team culture",
+            "Competitive compensation",
+            "Work-life balance & flexibility",
+            "Role alignment with skills"
+        ]
+    },
 }
 
 # -------------------- Functions --------------------
@@ -60,8 +99,10 @@ def save_response(data):
         (name, organization, org_size, org_type, location, q1, q2, q3, q4, q5)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        data["name"], data["organization"], data["org_size"], data["org_type"], data["location"],
-        data["q1"], data["q2"], data["q3"], data["q4"], data["q5"]
+        data.get("name"), data.get("organization"), data.get("org_size"),
+        data.get("org_type"), data.get("location"),
+        data.get("q1"), data.get("q2"), data.get("q3"),
+        data.get("q4"), data.get("q5")
     ))
     conn.commit()
     conn.close()
@@ -72,45 +113,75 @@ def load_data():
     conn.close()
     return df
 
-# -------------------- Sidebar Navigation --------------------
+# -------------------- Sidebar --------------------
 st.set_page_config(page_title="Voice of Industry", layout="wide")
-st.sidebar.title("🔍 Navigation")
 page = st.sidebar.radio("Go to", ["Survey", "Dashboard"])
 
-# -------------------- Survey Page --------------------
+# -------------------- Survey --------------------
 if page == "Survey":
     st.title("📝 Voice of Industry Survey")
 
-    # Respondent info
-    name = st.text_input("Full Name")
-    organization = st.text_input("Organization Name")
-    org_size = st.radio("Organization Size", ["<50", "51-100", "101-250", "250+"])
-    org_type = st.selectbox("Type of Organization",
-        ["Agriculture & Farming","Manufacturing & Industrial","Construction & Real Estate",
-         "Information Technology (IT & Software)","Healthcare & Pharmaceuticals",
-         "Banking, Finance & Insurance","Education & Training","Tourism & Hospitality",
-         "Transport & Logistics","Media & Entertainment","Energy & Power","Retail & E-commerce","Others"])
-    location = st.text_input("City / Region")
+    # Initialize session state
+    if "survey_page" not in st.session_state:
+        st.session_state.survey_page = "info"
+    if "responses" not in st.session_state:
+        st.session_state.responses = {}
 
-    responses = {"name": name, "organization": organization, "org_size": org_size,
-                 "org_type": org_type, "location": location}
+    # Page: Respondent Info
+    if st.session_state.survey_page == "info":
+        st.header("Respondent Information")
+        name = st.text_input("Full Name")
+        organization = st.text_input("Organization Name")
+        org_size = st.radio("Organization Size", ["<50", "51-100", "101-250", "250+"])
+        org_type = st.selectbox(
+            "Type of Organization",
+            ["Agriculture & Farming","Manufacturing & Industrial","Construction & Real Estate",
+             "Information Technology (IT & Software)","Healthcare & Pharmaceuticals",
+             "Banking, Finance & Insurance","Education & Training","Tourism & Hospitality",
+             "Transport & Logistics","Media & Entertainment","Energy & Power","Retail & E-commerce","Others"]
+        )
+        location = st.text_input("City / Region")
 
-    # Survey questions
-    for qid, (heading, question, options) in questions.items():
-        st.subheader(heading)
-        st.write(question)
-        selected = st.multiselect("Select one or more options:", options, key=qid)
-        responses[qid] = " || ".join(selected)
+        if st.button("Start Survey ➡️"):
+            if not name or not organization or not location:
+                st.error("Please fill all required fields.")
+            else:
+                st.session_state.responses.update({
+                    "name": name,
+                    "organization": organization,
+                    "org_size": org_size,
+                    "org_type": org_type,
+                    "location": location,
+                })
+                st.session_state.survey_page = "q1"
 
-    if st.button("Submit Survey"):
-        if not name or not organization or not location:
-            st.error("⚠️ Please fill all required fields.")
-        else:
-            save_response(responses)
-            st.success("✅ Thank you for completing the survey!")
-            st.balloons()
+    # Pages: Questions
+    elif st.session_state.survey_page in questions:
+        qid = st.session_state.survey_page
+        qdata = questions[qid]
+        st.header(qdata["heading"])
+        st.write(qdata["question"])
+        selected = st.multiselect("Select one or more options:", qdata["options"], key=qid)
 
-# -------------------- Dashboard Page --------------------
+        if st.button("Next ➡️"):
+            if not selected:
+                st.error("Please select at least one option.")
+            else:
+                st.session_state.responses[qid] = " || ".join(selected)
+                next_q = f"q{int(qid[1]) + 1}"
+                if next_q in questions:
+                    st.session_state.survey_page = next_q
+                else:
+                    st.session_state.survey_page = "done"
+
+    # Page: Completion
+    elif st.session_state.survey_page == "done":
+        save_response(st.session_state.responses)
+        st.success("✅ Thank you for completing the survey!")
+        st.balloons()
+        st.session_state.survey_page = "info"  # Reset for next respondent
+
+# -------------------- Dashboard --------------------
 elif page == "Dashboard":
     st.title("📊 Voice of Industry Dashboard")
     df = load_data()
@@ -127,20 +198,20 @@ elif page == "Dashboard":
 
     st.markdown("---")
 
-    # Pie charts in one row
+    # Pie charts
     st.subheader("Survey Insights")
     cols = st.columns(len(questions))
-    for idx, (qid, (heading, _, _)) in enumerate(questions.items()):
-        qdata = df[qid].dropna()
+    for idx, (qid, qdata) in enumerate(questions.items()):
         with cols[idx]:
-            st.markdown(f"#### {heading}")
-            if not qdata.empty:
+            st.markdown(f"#### {qdata['heading']}")
+            qdata_series = df[qid].dropna()
+            if not qdata_series.empty:
                 all_answers = []
-                for row in qdata:
+                for row in qdata_series:
                     all_answers.extend([ans.strip() for ans in row.split("||")])
-                answer_counts = pd.Series(all_answers).value_counts().reset_index()
-                answer_counts.columns = ["Answer", "Count"]
-                fig = px.pie(answer_counts, names="Answer", values="Count", hole=0.4)
+                counts = pd.Series(all_answers).value_counts().reset_index()
+                counts.columns = ["Answer", "Count"]
+                fig = px.pie(counts, names="Answer", values="Count", hole=0.4)
                 fig.update_layout(
                     legend=dict(orientation="h", y=-0.3, x=0.5, xanchor="center"),
                     margin=dict(t=30, b=40, l=10, r=10)
@@ -148,9 +219,3 @@ elif page == "Dashboard":
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No responses yet.")
-
-    st.markdown("---")
-
-    # Raw Data
-    with st.expander("📂 View Raw Data"):
-        st.dataframe(df, use_container_width=True)
