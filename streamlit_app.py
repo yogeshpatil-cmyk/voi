@@ -8,26 +8,27 @@ import plotly.express as px
 DB_FILE = os.path.join(os.path.dirname(__file__), "survey_responses.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS responses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        organization TEXT,
-        org_size TEXT,
-        org_type TEXT,
-        location TEXT,
-        q1 TEXT,
-        q2 TEXT,
-        q3 TEXT,
-        q4 TEXT,
-        q5 TEXT,
-        submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    conn.commit()
-    conn.close()
+    if not os.path.exists(DB_FILE):
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            organization TEXT,
+            org_size TEXT,
+            org_type TEXT,
+            location TEXT,
+            q1 TEXT,
+            q2 TEXT,
+            q3 TEXT,
+            q4 TEXT,
+            q5 TEXT,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        conn.commit()
+        conn.close()
 
 init_db()
 
@@ -35,7 +36,7 @@ init_db()
 questions = {
     "q1": {
         "heading": "The Hiring Hurdle",
-        "question": "What is the single biggest roadblock you face when hiring fresh graduates?",
+        "question": "What is the single biggest roadblock you face in hiring fresh graduates?",
         "options": [
             "Poor communication and confidence",
             "Weak problem-solving ability",
@@ -235,8 +236,11 @@ if st.session_state.show_dashboard:
                         all_answers.extend([ans.strip() for ans in row.split("||")])
                     counts = pd.Series(all_answers).value_counts().reset_index()
                     counts.columns = ["Answer", "Count"]
-                    fig = px.pie(counts, names="Answer", values="Count", hole=0.3, height=250, width=250)
-                    fig.update_layout(legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"))
+                    fig = px.pie(counts, names="Answer", values="Count", hole=0.3)
+                    fig.update_layout(
+                        legend=dict(orientation="h", y=-0.3, x=0.5, xanchor="center"),
+                        margin=dict(t=20, b=30)
+                    )
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("No responses yet for this question.")
