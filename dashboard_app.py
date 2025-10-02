@@ -3,7 +3,6 @@ import sqlite3
 import os
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
 
 # -------------------- Database Setup --------------------
 DB_FILE = os.path.join(os.path.dirname(__file__), "survey_responses.db")
@@ -126,8 +125,10 @@ def load_data():
 st.set_page_config(page_title="Voice of Industry", layout="wide")
 st.title("📝 Voice of Industry Survey & Dashboard")
 
-# -------------------- Survey Flow --------------------
+# -------------------- Survey Pages --------------------
 if not st.session_state.show_dashboard:
+
+    # --- Respondent Info Page ---
     if st.session_state.page == "info":
         st.header("Respondent Information")
         name = st.text_input("Full Name")
@@ -154,8 +155,9 @@ if not st.session_state.show_dashboard:
                     "location": location
                 })
                 st.session_state.page = "q1"
-                st.rerun()
+                st.experimental_rerun()
 
+    # --- Survey Question Pages ---
     elif st.session_state.page in questions:
         qid = st.session_state.page
         qdata = questions[qid]
@@ -169,18 +171,17 @@ if not st.session_state.show_dashboard:
                 st.error("Please select at least one option.")
             else:
                 st.session_state.responses[qid] = " || ".join(selected)
-                # move to next question or finish
                 next_num = int(qid[1]) + 1
-                next_page = f"q{next_num}" if f"q{next_num}" in questions else "done"
-                st.session_state.page = next_page
-                st.rerun()
+                st.session_state.page = f"q{next_num}" if f"q{next_num}" in questions else "done"
+                st.experimental_rerun()
 
+    # --- Survey Completion Page ---
     elif st.session_state.page == "done":
         save_response(st.session_state.responses)
         st.success("✅ Thank you for completing the survey!")
         if st.button("Go to Dashboard 📊"):
             st.session_state.show_dashboard = True
-            st.rerun()
+            st.experimental_rerun()
 
 # -------------------- Dashboard --------------------
 if st.session_state.show_dashboard:
@@ -189,8 +190,8 @@ if st.session_state.show_dashboard:
     if df.empty:
         st.warning("⚠️ No responses yet.")
     else:
-        # -------------------- Filters --------------------
-        st.sidebar.header("Filters for Dashboard")
+        # --- Filters ---
+        st.sidebar.header("Filters")
         industries = ["All"] + sorted(df["org_type"].dropna().unique().tolist())
         sizes = ["All"] + sorted(df["org_size"].dropna().unique().tolist())
         locations = sorted(df["location"].dropna().unique().tolist())
@@ -207,33 +208,24 @@ if st.session_state.show_dashboard:
         if selected_locations:
             filtered_df = filtered_df[filtered_df["location"].isin(selected_locations)]
 
-        # -------------------- KPIs --------------------
+        # --- KPIs ---
         kpi1, kpi2, kpi3 = st.columns(3)
         kpi1.metric("Total Responses", len(filtered_df))
         kpi2.metric("Unique Organizations", filtered_df["organization"].nunique())
         kpi3.metric("Unique Locations", filtered_df["location"].nunique())
 
-        st.markdown("---")
-
-        # -------------------- Industry Bar --------------------
+        # --- Industry Bar Chart ---
         st.subheader("🌍 Industry Representation")
         industry_counts = filtered_df["org_type"].value_counts().reset_index()
         industry_counts.columns = ["Industry", "Count"]
         fig_industry = px.bar(industry_counts, x="Industry", y="Count", text="Count", color="Industry")
         st.plotly_chart(fig_industry, use_container_width=True)
 
-        # -------------------- Survey Pie Charts --------------------
-        questions_titles = {
-            "q1": "The Hiring Hurdle",
-            "q2": "The Future Skill Stack",
-            "q3": "The First Job Gap",
-            "q4": "The Selection Compass",
-            "q5": "The Retention Code",
-        }
-
+        # --- Pie Charts for Survey Questions ---
         st.subheader("📊 Survey Insights")
-        cols = st.columns(len(questions_titles))
-        for idx, (qid, title) in enumerate(questions_titles.items()):
+        question_titles = {k:v["heading"] for k,v in questions.items()}
+        cols = st.columns(len(question_titles))
+        for idx, (qid, title) in enumerate(question_titles.items()):
             qdata = filtered_df[qid].dropna()
             with cols[idx]:
                 st.markdown(f"#### {title}")
@@ -243,7 +235,8 @@ if st.session_state.show_dashboard:
                         all_answers.extend([ans.strip() for ans in row.split("||")])
                     counts = pd.Series(all_answers).value_counts().reset_index()
                     counts.columns = ["Answer", "Count"]
-
-                    fig_pie = px.pie(counts, names="Answer", values="Count", hole=0.3, height=250, width=250)
-                    fig_pie.update_layout(
-                       
+                    fig = px.pie(counts, names="Answer", values="Count", hole=0.3, height=250, width=250)
+                    fig.update_layout(legend=dict(orientation="h", y=-0.2, x=0.5, xanchor="center"))
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No responses yet for this question.")
