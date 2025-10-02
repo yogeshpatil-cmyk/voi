@@ -152,8 +152,9 @@ if page == "Survey":
                     "org_size": org_size,
                     "org_type": org_type,
                     "location": location,
-                })
+                    })
                 st.session_state.survey_page = "q1"
+                st.experimental_rerun()
 
     # Pages: Questions
     elif st.session_state.survey_page in questions:
@@ -163,16 +164,17 @@ if page == "Survey":
         st.write(qdata["question"])
         selected = st.multiselect("Select one or more options:", qdata["options"], key=qid)
 
-        if st.button("Next ➡️"):
-            if not selected:
-                st.error("Please select at least one option.")
-            else:
-                st.session_state.responses[qid] = " || ".join(selected)
-                next_q = f"q{int(qid[1]) + 1}"
-                if next_q in questions:
-                    st.session_state.survey_page = next_q
-                else:
-                    st.session_state.survey_page = "done"
+    if st.button("Next ➡️"):
+    if not selected:
+        st.error("Please select at least one option.")
+    else:
+        st.session_state.responses[qid] = " || ".join(selected)
+        next_q = f"q{int(qid[1]) + 1}"
+        if next_q in questions:
+            st.session_state.survey_page = next_q
+        else:
+            st.session_state.survey_page = "done"
+
 
     # Page: Completion
     elif st.session_state.survey_page == "done":
@@ -219,3 +221,4 @@ elif page == "Dashboard":
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No responses yet.")
+
