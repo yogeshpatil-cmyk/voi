@@ -84,12 +84,3 @@ with st.form("survey_form", clear_on_submit=True):
 
         st.success("🎉 Thank you! Your response has been recorded.")
         st.rerun()  # 🔑 ensures instant dashboard refresh
-
-# -------------------- Page: Completion --------------------
-elif st.session_state.page == "done":
-    save_response(st.session_state.responses)
-    st.success("✅ Thank you for completing the survey!")
-    st.markdown("You can now view the **live dashboard** [here](http://localhost:8502)")
-    st.balloons()
-    st.stop()
-
