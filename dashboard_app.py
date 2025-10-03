@@ -37,6 +37,21 @@ with header_col2:
         "<h1 style='margin-top: 15px;'>📊 Voice of Industry Dashboard</h1>",
         unsafe_allow_html=True
     )
+kpi_col, bar_col = st.columns([1, 4])
+
+with kpi_col:
+    st.markdown(
+        f"""
+        <div style="font-size:28px; font-weight:bold; margin-bottom:10px;">
+            Total Responses
+        </div>
+        <div style="font-size:36px; color:#2E86C1; font-weight:bold;">
+            {len(filtered_df)}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 
 # -------------------- Load Data --------------------
 @st.cache_data
@@ -110,22 +125,7 @@ for idx, (qid, title) in enumerate(questions.items()):
         else:
             st.info(f"No responses yet for {title}.")
 
-# -------------------- KPI + Industry Types --------------------
-kpi_col, bar_col = st.columns([1, 4])
-
-with kpi_col:
-    st.markdown(
-        f"""
-        <div style="font-size:28px; font-weight:bold; margin-bottom:10px;">
-            Total Responses
-        </div>
-        <div style="font-size:36px; color:#2E86C1; font-weight:bold;">
-            {len(filtered_df)}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
+# -------------------- Industry Types --------------------
 with bar_col:
     st.subheader("🌍 Industry Types")
     industry_counts = filtered_df["org_type"].value_counts().reset_index()
@@ -149,4 +149,5 @@ with st.expander("📂 Raw Survey Data (Filtered)"):
         "survey_responses_filtered.csv",
         "text/csv"
     )
+
 
