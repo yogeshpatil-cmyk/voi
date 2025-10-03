@@ -28,31 +28,6 @@ with engine.begin() as conn:
 # -------------------- Streamlit Config --------------------
 st.set_page_config(page_title="Voice of Industry Dashboard", layout="wide")
 
-# Header row: logo + title
-header_col1, header_col2 = st.columns([1, 6])
-with header_col1:
-    st.image("logo.png", width=80)
-with header_col2:
-    st.markdown(
-        "<h1 style='margin-top: 15px;'>📊 Voice of Industry Dashboard</h1>",
-        unsafe_allow_html=True
-    )
-kpi_col, bar_col = st.columns([1, 4])
-
-with kpi_col:
-    st.markdown(
-        f"""
-        <div style="font-size:28px; font-weight:bold; margin-bottom:10px;">
-            Total Responses
-        </div>
-        <div style="font-size:36px; color:#2E86C1; font-weight:bold;">
-            {len(filtered_df)}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
 # -------------------- Load Data --------------------
 @st.cache_data
 def load_data():
@@ -81,7 +56,35 @@ if selected_size != "All":
     filtered_df = filtered_df[filtered_df["org_size"] == selected_size]
 if selected_locations:
     filtered_df = filtered_df[filtered_df["location"].isin(selected_locations)]
-# -------------------- Pie Charts (One Row) --------------------
+
+# -------------------- First Row: Logo + Title + KPI --------------------
+col_logo, col_title, col_kpi = st.columns([1, 5, 2])
+
+with col_logo:
+    st.image("logo.png", width=80)
+
+with col_title:
+    st.markdown(
+        "<h1 style='text-align:center; margin-top: 10px;'>📊 Voice of Industry Dashboard</h1>",
+        unsafe_allow_html=True
+    )
+
+with col_kpi:
+    st.markdown(
+        f"""
+        <div style="text-align:right;">
+            <div style="font-size:22px; font-weight:bold; margin-bottom:5px;">
+                Total Responses
+            </div>
+            <div style="font-size:34px; color:#2E86C1; font-weight:bold;">
+                {len(filtered_df)}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# -------------------- Second Row: Pie Charts --------------------
 questions = {
     "q1": "The Hiring Hurdle",
     "q2": "The Future Skill Stack",
@@ -125,20 +128,18 @@ for idx, (qid, title) in enumerate(questions.items()):
         else:
             st.info(f"No responses yet for {title}.")
 
-# -------------------- Industry Types --------------------
-with bar_col:
-    st.subheader("🌍 Industry Types")
-    industry_counts = filtered_df["org_type"].value_counts().reset_index()
-    industry_counts.columns = ["Industry Type", "Count"]
-    if not industry_counts.empty:
-        fig_industry = px.bar(
-            industry_counts,
-            x="Industry Type", y="Count",
-            text="Count", color="Industry Type",
-            height=400
-        )
-        st.plotly_chart(fig_industry, use_container_width=True)
-
+# -------------------- Third Row: Industry Bar Chart --------------------
+st.subheader("🌍 Industry Types")
+industry_counts = filtered_df["org_type"].value_counts().reset_index()
+industry_counts.columns = ["Industry Type", "Count"]
+if not industry_counts.empty:
+    fig_industry = px.bar(
+        industry_counts,
+        x="Industry Type", y="Count",
+        text="Count", color="Industry Type",
+        height=400
+    )
+    st.plotly_chart(fig_industry, use_container_width=True)
 
 # -------------------- Raw Data --------------------
 with st.expander("📂 Raw Survey Data (Filtered)"):
@@ -149,5 +150,3 @@ with st.expander("📂 Raw Survey Data (Filtered)"):
         "survey_responses_filtered.csv",
         "text/csv"
     )
-
-
