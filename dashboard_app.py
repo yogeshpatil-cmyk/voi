@@ -66,36 +66,6 @@ if selected_size != "All":
     filtered_df = filtered_df[filtered_df["org_size"] == selected_size]
 if selected_locations:
     filtered_df = filtered_df[filtered_df["location"].isin(selected_locations)]
-
-# -------------------- KPI + Industry Types --------------------
-kpi_col, bar_col = st.columns([1, 4])
-
-with kpi_col:
-    st.markdown(
-        f"""
-        <div style="font-size:28px; font-weight:bold; margin-bottom:10px;">
-            Total Responses
-        </div>
-        <div style="font-size:36px; color:#2E86C1; font-weight:bold;">
-            {len(filtered_df)}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with bar_col:
-    st.subheader("🌍 Industry Types")
-    industry_counts = filtered_df["org_type"].value_counts().reset_index()
-    industry_counts.columns = ["Industry Type", "Count"]
-    if not industry_counts.empty:
-        fig_industry = px.bar(
-            industry_counts,
-            x="Industry Type", y="Count",
-            text="Count", color="Industry Type",
-            height=400
-        )
-        st.plotly_chart(fig_industry, use_container_width=True)
-
 # -------------------- Pie Charts (One Row) --------------------
 questions = {
     "q1": "The Hiring Hurdle",
@@ -140,6 +110,36 @@ for idx, (qid, title) in enumerate(questions.items()):
         else:
             st.info(f"No responses yet for {title}.")
 
+# -------------------- KPI + Industry Types --------------------
+kpi_col, bar_col = st.columns([1, 4])
+
+with kpi_col:
+    st.markdown(
+        f"""
+        <div style="font-size:28px; font-weight:bold; margin-bottom:10px;">
+            Total Responses
+        </div>
+        <div style="font-size:36px; color:#2E86C1; font-weight:bold;">
+            {len(filtered_df)}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with bar_col:
+    st.subheader("🌍 Industry Types")
+    industry_counts = filtered_df["org_type"].value_counts().reset_index()
+    industry_counts.columns = ["Industry Type", "Count"]
+    if not industry_counts.empty:
+        fig_industry = px.bar(
+            industry_counts,
+            x="Industry Type", y="Count",
+            text="Count", color="Industry Type",
+            height=400
+        )
+        st.plotly_chart(fig_industry, use_container_width=True)
+
+
 # -------------------- Raw Data --------------------
 with st.expander("📂 Raw Survey Data (Filtered)"):
     st.dataframe(filtered_df, use_container_width=True, height=250)
@@ -149,3 +149,4 @@ with st.expander("📂 Raw Survey Data (Filtered)"):
         "survey_responses_filtered.csv",
         "text/csv"
     )
+
