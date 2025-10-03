@@ -27,8 +27,16 @@ with engine.begin() as conn:
 
 # -------------------- Streamlit Config --------------------
 st.set_page_config(page_title="Voice of Industry Dashboard", layout="wide")
-st.title("📊 Voice of Industry Dashboard")
-st.image("logo.png", width=100)
+
+# Header row: logo + title
+header_col1, header_col2 = st.columns([1, 6])
+with header_col1:
+    st.image("logo.png", width=80)
+with header_col2:
+    st.markdown(
+        "<h1 style='margin-top: 15px;'>📊 Voice of Industry Dashboard</h1>",
+        unsafe_allow_html=True
+    )
 
 # -------------------- Load Data --------------------
 @st.cache_data
@@ -59,12 +67,36 @@ if selected_size != "All":
 if selected_locations:
     filtered_df = filtered_df[filtered_df["location"].isin(selected_locations)]
 
-# -------------------- KPI --------------------
-st.metric("Total Responses", len(filtered_df))
+# -------------------- KPI + Industry Types --------------------
+kpi_col, bar_col = st.columns([1, 4])
 
-# -------------------- Survey Questions (All Pie Charts in One Row) --------------------
-st.subheader("📊 Survey Insights (All Questions)")
+with kpi_col:
+    st.markdown(
+        f"""
+        <div style="font-size:28px; font-weight:bold; margin-bottom:10px;">
+            Total Responses
+        </div>
+        <div style="font-size:36px; color:#2E86C1; font-weight:bold;">
+            {len(filtered_df)}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
+with bar_col:
+    st.subheader("🌍 Industry Types")
+    industry_counts = filtered_df["org_type"].value_counts().reset_index()
+    industry_counts.columns = ["Industry Type", "Count"]
+    if not industry_counts.empty:
+        fig_industry = px.bar(
+            industry_counts,
+            x="Industry Type", y="Count",
+            text="Count", color="Industry Type",
+            height=400
+        )
+        st.plotly_chart(fig_industry, use_container_width=True)
+
+# -------------------- Pie Charts (One Row) --------------------
 questions = {
     "q1": "The Hiring Hurdle",
     "q2": "The Future Skill Stack",
@@ -107,19 +139,6 @@ for idx, (qid, title) in enumerate(questions.items()):
             st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info(f"No responses yet for {title}.")
-
-# -------------------- Bottom: Industry Bar Chart --------------------
-st.subheader("🌍 Industry Types")
-industry_counts = filtered_df["org_type"].value_counts().reset_index()
-industry_counts.columns = ["Industry Type", "Count"]
-if not industry_counts.empty:
-    fig_industry = px.bar(
-        industry_counts,
-        x="Industry Type", y="Count",
-        text="Count", color="Industry Type",
-        height=400
-    )
-    st.plotly_chart(fig_industry, use_container_width=True)
 
 # -------------------- Raw Data --------------------
 with st.expander("📂 Raw Survey Data (Filtered)"):
