@@ -2,4 +2,5 @@ streamlit
 pandas
 plotly
 sqlalchemy
+geopy
 psycopg2-binary
